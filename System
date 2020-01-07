@@ -1,0 +1,526 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h> 
+#define COUNT 64//磁盘物理地址结构体 
+int maxid=4; //空白表数目
+int maxnum=4;//文件个数
+// 空白文件
+ typedef struct{
+	int id;
+	int firstblock;
+	int blocknum;
+	int lastblock;
+}Space;
+
+// 分配文件
+typedef struct {
+   char flag[10];
+   int  firstnum;
+   int  fullnum;
+   int  lastnum;
+}Full;
+
+//初始化分配
+ Full full[20]={{"曹然",0,2,1},{"刘晓龙",6,3,8},{"段继昌",12,13,24},{"金立",30,9,38}};
+ Space file[20]={{1,2,4,5},{2,9,3,11},{3,25,5,29},{4,39,62,100}};
+
+//分配打印
+ void fullprint(){
+	printf("\t\t\t\t  已分配文件表\n");
+ 	 printf("\t\t-------------------------------------------------\n"); 
+	 printf("\t\t|文件名\t 首块号 \t文件块个数      末块号  |\n");
+     for(int i=0;i<maxnum;i++){	 
+		 printf("\t\t|%s\t %d\t\t %d\t\t %d\t|\n",full[i].flag,full[i].firstnum,full[i].fullnum,
+			 full[i].lastnum);
+	 }
+	 printf("\t\t-------------------------------------------------\n");
+	 printf("当前文件数目=%d\n",maxnum);
+ }
+
+ //空白区打印
+ void fileprint(){
+	printf("\t\t\t\t  空闲盘块表\n");
+ 	 printf("\t\t-------------------------------------------------\n");
+	 printf("\t\t|文件号\t 首块号 \t文件块个数      末块号  |\n");
+     for(int i=0;i<maxid;i++){	 
+		 printf("\t\t|%d\t %d\t\t %d\t\t %d\t|\n",file[i].id,file[i].firstblock,file[i].blocknum,
+			 file[i].lastblock);
+	 }
+	 printf("\t\t-------------------------------------------------\n");
+	 printf("当前空白区数目=%d\n",maxid);
+ }
+
+ void distribute1(){   //分配函数
+	 char S_File[10]; //文件名
+	 int M;           //申请块数
+	 int temp;        //被分配的首块号
+	 printf("文件分配\n");
+	 printf("输入文件名:");
+	 scanf("%s",S_File);
+     printf("输入申请块数:");
+     scanf("%d",&M);
+	 
+	 for(int f=0;f<maxid;f++){
+		 for(int i=0;i<maxnum;++i){
+			 if(!strcmp(full[i].flag,S_File)){
+			    printf("文件也存在，无法分配\n");
+				return;
+			 }
+		 }
+		 if(M==0){
+		 printf("申请块数不能为0，无法分配\n");
+		 break;
+		 }
+		 if(f>=maxid){
+		   printf("本次无法分配");
+		   return ;
+		 }
+		 if(file[f].blocknum>=M){
+			 temp=file[f].firstblock;
+		     printf("空白分区可用\n");
+			 if(file[f].blocknum==M){
+                 for(;f<maxid-1;f++){
+					 file[f].firstblock=file[f+1].firstblock;
+					 file[f].blocknum=file[f+1].blocknum;
+					 file[f].lastblock=file[f+1].lastblock;
+				 }
+				 maxid--;
+			 }
+			 else{
+				 file[f].blocknum-=M;
+				 file[f].firstblock+=M;
+			 }
+			 strcpy(full[maxnum].flag,S_File);
+			 full[maxnum].firstnum=temp;
+			 full[maxnum].fullnum=M;
+			 full[maxnum].lastnum=full[maxnum].firstnum+full[maxnum].fullnum-1;
+			 maxnum+=1;
+			 break;
+		 }
+	 }
+	 fileprint();
+     fullprint();
+ }
+
+ void release1(){   //释放函数
+     printf("删除一个文件，释放空间\n");
+	 int F;//删除文件首块号
+	 int B;//删除文件块数
+	 int L;//删除文件末块
+	 char s_file[10];
+	 printf("输入删除文件的文件名:");
+	 scanf("%s",s_file);
+	 int isrelease=0;
+	 for(int i=0;i<maxnum;i++){
+		 
+		 if(!strcmp(s_file,full[i].flag))
+		 {   
+			 isrelease=1;
+			 int flag1=0;//上邻标记
+			 int page1=0;
+			 int flag2=0; //下邻标记
+			 int page2=0;
+			 L=full[i].lastnum;
+			 F=full[i].firstnum;
+			 B=full[i].fullnum;
+			 for(;i<maxnum-1;i++){
+				 full[i]=full[i+1];
+			 }
+			 maxnum--;
+                         for(int i=0;i<maxid;++i){
+				 if((file[i].lastblock+1)==F){
+				     flag1=1;
+					 page1=i;
+				 }
+				 if((file[i].firstblock-1)==L){
+				     flag2=1;
+					 page2=i;
+				 }
+			 }
+			 if(flag1&&(!flag2))  //有上邻，无下邻
+			 {
+					file[page1].blocknum+=B;			
+					file[page1].lastblock=L;
+			 }
+			 if(flag1&&flag2)     //有上邻，有下邻
+			 {
+				 file[page1].blocknum+=(B+file[page2].blocknum);
+				 file[page1].lastblock=file[page2].lastblock;
+				 for(;page2<maxid;page2++){
+				     file[page2]=file[page2+1];
+					 file[page2].id=page2+1;
+				 }
+				 maxid--;
+			 }
+			 if((!flag1)&&(!flag2))  //无上邻，无下邻
+			 {
+				 file[maxid].id=maxid;
+ 			     file[maxid].firstblock=F;
+				 file[maxid].blocknum=B;
+				 file[maxid].lastblock=L;
+				 maxid++;
+			 }
+			 if((!flag1)&&flag2)    //无上邻，有下邻
+			 {
+				file[page2].blocknum+=B;
+				file[page2].firstblock=F;
+			 }
+		 }
+	 } 
+     if(isrelease==0)
+		 printf("输入文件有误\n");
+	fileprint();
+	fullprint();
+ }
+ typedef struct PhysicalADD
+{
+      //柱面号
+      int cylinum ;
+      //磁道号
+      int tracknum ;
+      //扇区号
+      int sectornum ;
+}PhADD;//位示图，由盘组共8个柱面，每个柱面有2个磁道（盘面），每个磁道分成4个物理记录，需要64位来表示位示图，filename记录块中保存的文件名
+struct bitmapinfo
+{ 
+    int bitmap[COUNT]  ;
+    char filename[COUNT][32];
+};
+
+struct bitmapinfo *bitinfo = NULL; 
+
+//showbitmap函数，功能打印位示图信息  
+void show2(void)
+{
+     int i = 0;
+     int j; 
+     printf("当前系统磁盘位示图（0表示块可用）：\n");
+     printf("\t1\t2\t3\t4\t5\t6\t7\t8");
+     printf("\n   ----------------------------------------------------------------------\n");
+     for(j=1;j<7;j++){
+     for(;i<COUNT;i++)
+     { 
+          if(0==i%8)
+          {
+              if(i!=0){
+              printf("|\n"); 
+            }
+            printf(" %d |\t",j++);
+          } 
+          
+          printf("%d\t",bitinfo->bitmap[i]);
+        
+     }
+     }
+     printf("|\n");
+     printf("   ----------------------------------------------------------------------\n");
+}
+void distribute2(void)
+{
+     int neednum;
+     int i ;
+     int busy = 0;
+     char filestor[32]; 
+     
+     printf("输入需要分配的块数:\n");
+     scanf("%d",&neednum);
+     printf("输入文件名:\n");
+     scanf("%s",filestor);
+     
+     for( i=0;i<COUNT;i++)
+     {
+          busy =busy + bitinfo->bitmap[i]; 
+     }
+     if( 64-busy<neednum )
+     {
+                     printf("没有足够的空闲磁盘，分配失败！");
+     }
+     else
+     {
+          printf("开始分配...\n");
+          printf("分配块物理地址为：\n");
+          printf("柱面号 \t 磁道号 \t扇区号\n"); 
+          for(i=0 ; i<COUNT; i++)
+          {
+              if( 0==bitinfo->bitmap[i])
+              {
+                  printf("  %d \t   %d \t \t  %d\n",i/8+1,i%8/4,(i%8)%4);
+                  bitinfo->bitmap[i] = 1;
+                  strcpy(bitinfo->filename[i] , filestor);
+                  neednum--;
+              }
+              if( 0==neednum)
+              {
+                  break;
+              }
+              
+          }
+          printf("分配成功！\n");   
+     }
+}
+
+void release2(void)
+{
+     char filereturn[32]; 
+     int i;
+     
+     printf("输入要回收的文件名:");
+     scanf("%s",filereturn);
+printf("字节号\t 物理块号\n");
+     for( i=0;i<COUNT;i++)
+     {
+         if( 0!=strcmp(filereturn,bitinfo->filename[i]) )
+         {
+             continue;     
+         }
+         else
+         {
+             bitinfo->bitmap[i] = 0; 
+        
+             printf("  %d \t    %d\n",i/8+1,i%8+1);
+         }
+     }
+    
+}
+int MA[4];     /*空闲块数组*/
+int A[9][4]={{3,1,2,3},{3,4,5,6},{0,0,0,0},{0,0,0,0},{3,0,7,8},
+             {0,0,0,0},{0,0,0,0},{0,0,0,0},{0,0,0,0}};  /*磁盘空间*/
+int mark[9];       /*存放已分配的块*/
+int No=0;              /*已分配的块数*/
+
+void show3()
+{   int i,j,temp,count;
+    No=0;         /*已分配的块数*/
+    if(MA[1]!=0)
+       {   i=MA[0];          //i=3
+           printf("\n空闲盘块号栈:");
+           printf("%d   ",MA[0]);
+           for(j=1;j<=i;j++)      
+              {  
+			  	printf("%d   ",MA[j]); 
+              }   
+		   printf("\n第1组:");
+           for(j=1;j<=i;j++)     
+              {  
+			   printf("%d   ",MA[j]); 
+			   mark[++No]=MA[j];
+              }               
+           temp=MA[1];
+           count=2;
+           while(A[temp][1]!=0)      
+              {   printf("\n第%d组:",count);
+                  i=A[temp][0];          
+                  for(j=1;j<=i;j++)
+                     {  
+					  printf("%d   ",A[temp][j]); 
+					  mark[++No]=A[temp][j];    
+                     }    
+                  count++;   
+                  temp=A[temp][1]; 
+              }
+           printf("\n第%d组:",count);
+           i=A[temp][0];
+           for(j=2;j<=i;j++)
+            {  
+				printf("%d   ",A[temp][j]);
+				mark[++No]=A[temp][j];
+            }    
+       }
+    else
+       {   i=MA[0];
+           if(i==1)   //还有个0没有分配
+              printf("\n所有的块已分配完");
+           else   
+              {  
+              	 printf("\n空闲盘块号栈:");
+           		 printf("%d   ",i);
+           		 for(j=1;j<=i;j++)       
+              		 {  
+			  			printf("%d   ",MA[j]); 
+              		 }  
+			  	 printf("\n第1组:");
+           		 for(j=2;j<=i;j++)
+                     {  
+					 	 printf("%d   ",MA[j]);
+					 	  mark[++No]=MA[j];
+                     }    
+              }    
+       }
+}
+
+void distribute3()      /*分配空闲块*/             
+{   int s,i;
+    if(MA[0]>1)       /*若该组不止一个空闲块*/
+       {   i=MA[0]; 
+           s=MA[i];  
+           MA[0]--;
+           printf("\n当前分配的空闲块的块号:%d",s);     
+       }
+    else if(MA[0]==1)      /*只剩一个空闲块*/
+       {   if(MA[1]!=0)           /*空闲盘快号栈换成新的*/ 
+              {   s=MA[1];    
+                  for(i=0;i<=3;i++)
+                     MA[i]=A[s][i];   
+                  printf("\n已分配的空闲块的块号:%d",s);   
+              }
+           else                    /*最后的结束*/
+              {   printf("\n没有任何空间");
+                  return;
+              }   
+       }
+    show3();         /*显示分组情况*/ 
+}
+
+void release3()         /*回收空闲块*/
+{   int i,j,temp;
+    printf("\n输入你想回收的块号:");
+    scanf("%d",&j);
+    getchar();             /*得到待回收的空闲块号*/
+    for(temp=1;temp<=No;temp++)
+       {   if(mark[temp]==j)
+              break;
+       }
+    if(temp<No+1)        /*若该空闲块已在，退出*/
+       {   printf("\n该空闲块已存在");
+    return;
+       }   
+    if(MA[0]<3)         /*当前组不满3块*/
+       {   i=MA[0];
+           MA[i+1]=j;
+           MA[0]++;
+       }
+    else              /*已有3块*/
+       {   for(i=0;i<=3;i++)
+              A[j][i]=MA[i];
+           MA[0]=1;
+           MA[1]=j;   
+       }   
+    show3();      /*显示*/ 
+}
+void menu()                /*功能选择函数*/
+{   int choice;
+    
+		   printf("\n\t\t ===========================================\n");
+           printf("\t\t|                                           |\n");
+	       printf("\t\t|        1：分配 2：释放 3：退出            |\n");
+           printf("\t\t|                                           |\n");
+	       printf("\t\t ===========================================\n");
+	       printf("请选择："); 
+    scanf("%d",&choice);
+    getchar();
+    if(choice==1){
+    	distribute3();
+       menu();
+    }
+       
+    else if(choice==2){
+    	release3();
+       menu();
+    }
+       
+    else if(choice==3){
+		show3();
+        printf("\n");
+	}	
+    else
+       printf("\n无效命令!");
+    
+} 
+int main1(){
+	fileprint();
+	fullprint();
+	       
+	       printf("\t\t *        A：分配 B：释放 C：退出        *\n");
+               
+	      
+	 while(1){  
+	 char s;
+	 scanf("%c",&s);
+         printf("请选择："); 
+	    switch(s){
+		case 'A':
+           distribute1();
+		   break;
+		case 'B':
+			release1();
+			break;
+		case 'C':
+			return 1;
+		}
+	
+	}	
+	
+	
+} 
+int main2(void){
+	 int j;
+     //binfo初始化
+     bitinfo = (struct bitmapinfo *)malloc(sizeof(struct bitmapinfo));
+     for( j=0; j<COUNT;j++)
+     {
+         bitinfo->bitmap[j]=0;
+         memset( bitinfo->filename[j], 0, sizeof(char)*32 ); 
+     }
+
+    //功能选择 
+    int func = 0;
+     
+     while( 1 )
+     {
+           printf("* * * * * * * * * * * * * * 位示图法对磁盘空间的管理 * * * * * * * * * * * * * *\n");
+           printf("\n");
+           printf("\t\t\t\t| -*1*-查看磁盘位示图\n");
+           printf("\t\t\t\t| -*2*-申请分配磁盘空间\n");
+           printf("\t\t\t\t| -*3*-申请回收磁盘空间\n");
+           printf("\t\t\t\t| -*4*-退出程序\n");
+           printf("\n");
+           printf("* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n");
+           printf("请输入操作序号："); 
+           scanf("%d",&func);
+           switch( func )
+           {
+                   case 1 :show2();break;
+                   case 2 :distribute2();break;
+                   case 3 :release2();break; 
+                   case 4 :return 1;
+           }
+     }   
+    
+}
+int main3(){
+	int i;
+    for(i=0;i<=3;i++)
+       MA[i]=A[0][i];
+    show3();
+    menu();
+}
+int main(){
+	int func = 0;
+     
+     while( 1 )
+     {
+           printf("\n\t\t * * * * * * * * * * * * * * * * * * * * * * * * * * * * * \n");
+	   printf("\t\t*                                                         *\n");
+           printf("\t\t*                                                         *\n");
+           printf("\t\t*                磁盘存储管理的算法模拟                   *\n");
+	   printf("\t\t*                                                         *\n");
+           printf("\t\t*                                                         *\n");
+	   printf("\t\t * * * * * * * * * * * * * * * * * * * * * * * * * * * * * \n");
+           printf("\t\t\t| -*1*- 采用空白文件目录实现磁盘空间的管理       \n");
+           printf("\t\t\t| -*2*- 采用位示图管理磁盘实现磁盘块的分配与回收 \n");
+           printf("\t\t\t| -*3*- 采用成组链接法实现磁盘存储空间的管理     \n");
+           printf("\t\t\t| -*4*- 退出程序                                 \n");
+           printf("__________________________________________________________________________________________\n");
+           printf("请输入操作序号："); 
+           scanf("%d",&func);
+           switch(func)
+           {
+                   case 1 :main1();break;
+                   case 2 :main2();break;
+                   case 3 :main3();break; 
+                   case 4 :return 1;
+           }
+     }   
+}
+
+
