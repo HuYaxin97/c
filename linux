@@ -1,0 +1,12 @@
+# include<linux/unistd.h>
+# include<linux/dirent.h>
+# include<linux/types.h>
+# include<sys/stat.h>
+# include<fcntl.h>
+#define_NR_getdents141
+long getdents(unsigned int fd,struct linux_dirent_user*dirent,usigned int count);
+_sysca113(long,getdents,unsigned int,fd,struct linux_dirent_user*,dirent,unsigned int count);
+
+main(){
+	getdents(unsigned int fd,struct linux_dirent_user*,dirent,unsigned int count);
+}
